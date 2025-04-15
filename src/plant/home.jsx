@@ -15,9 +15,7 @@ const Home = () => {
         const token = localStorage.getItem('token');
         if (token) {
           axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-          // Récupérer l'ID de l'utilisateur si nécessaire
-          // const userResponse = await axios.get('http://127.0.0.1:8000/api/user');
-          // setUserId(userResponse.data.id);
+          
         }
 
         const response = await axios.get('http://127.0.0.1:8000/api/plante');
@@ -37,7 +35,6 @@ const Home = () => {
 
   return (
     <div className="min-h-screen" style={{ fontFamily: "'Raleway', sans-serif", backgroundColor: '#f0fdf4' }}>
-      {/* Header */}
       <header className="leaf-pattern text-white py-6 bg-green-700">
         <div className="container mx-auto px-4">
           <h1 className="text-3xl font-bold">PéAPInière</h1>
@@ -45,7 +42,6 @@ const Home = () => {
         </div>
       </header>
       
-      {/* Hero Section */}
       <div className="relative h-96 overflow-hidden">
         <img 
           src="https://images.unsplash.com/photo-1534710961216-75c88202f43e?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80" 
@@ -64,7 +60,6 @@ const Home = () => {
       </div>
 
       <main className="container mx-auto px-4 py-8">
-        {/* Section Title */}
         <div className="mb-12 text-center">
           <h2 className="text-3xl font-bold text-gray-800 mb-2">Nos plantes vedettes</h2>
           <div className="w-24 h-1 bg-green-500 mx-auto"></div>
@@ -98,7 +93,6 @@ const Home = () => {
         </div>
       </main>
 
-      {/* Order Popup */}
       {showOrderPopup && selectedPlante && (
         <OrderPopup 
           plante={selectedPlante} 

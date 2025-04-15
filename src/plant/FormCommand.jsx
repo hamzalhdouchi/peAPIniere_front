@@ -2,44 +2,46 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import Swal from "sweetalert2";
 
-
 const OrderPopup = ({ plante, onClose, userId }) => {
-    const user_id = Number(sessionStorage.getItem('user'));
+  const user_id = Number(sessionStorage.getItem('user'));
   const [formData, setFormData] = useState({
     user_id: user_id,
     plante_id: plante.id,
     quantity: 1,
+    price: plante.ptrc * 1,  
   });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: name === 'quantity' ? parseInt(value) : value
+      [name]: name === 'quantity' ? parseInt(value) : value,
+      price: name === 'quantity' ? parseInt(value) * plante.ptrc : prev.total_price 
     }));
   };
 
   const handleSubmit = async (e) => {
-      e.preventDefault();
-      try {
-          const token = sessionStorage.getItem('token');
-          if (token) {
-              console.log(plante.id);
-              axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-              console.log(formData);
-        }
-        
-        
-        const response = await axios.post('http://127.0.0.1:8000/api/orders', formData);
-        console.log(response);
-         
-                      Swal.fire({
-                          icon: "success",
-                          title: "Order created.",
-                          text: response.data.order.original.message,
-                          timer: 2000,
-                          showConfirmButton: false,
-                      });
+    console.log(formData);
+    e.preventDefault();
+    try {
+      const token = sessionStorage.getItem('token');
+      if (token) {
+        console.log(plante.id);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        console.log(formData);
+      }
+
+      const response = await axios.post('http://127.0.0.1:8000/api/orders', formData);
+      console.log(response);
+
+      Swal.fire({
+        icon: "success",
+        title: "Order created.",
+        text: response.data.order.original.message,
+        timer: 2000,
+        showConfirmButton: false,
+      });
+
       console.log('Commande créée:', response.data);
       onClose();
     } catch (error) {
@@ -87,18 +89,10 @@ const OrderPopup = ({ plante, onClose, userId }) => {
             />
           </div>
 
-          {/* <div className="mb-6">
-            <label className="block text-gray-700 mb-2 font-medium">Statut d'acceptation</label>
-            <select
-              name="acciptaion"
-              value={formData.acciptaion}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              <option value="refuser">Refuser</option>
-              <option value="accepte">Accepter</option>
-            </select>
-          </div> */}
+          <div className="mb-4">
+            <label className="block text-gray-700 mb-2 font-medium">Total Price</label>
+            <p className="text-green-600 font-bold">{formData.total_price} €</p>
+          </div>
 
           <div className="flex justify-end space-x-3">
             <button

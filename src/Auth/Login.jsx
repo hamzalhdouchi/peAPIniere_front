@@ -10,25 +10,37 @@ const Login = () => {
         email: "",
         password: "",
         confirm_password: "",
+        role_id: 1,
     });
 
     const handleSubmit = async(e) => {
         e.preventDefault();
+        console.log(formData);
+        
         try {
             const response = await axios.post("http://127.0.0.1:8000/api/register", {
                 name: formData.name,
                 email: formData.email,
                 password: formData.password,
                 role_id: 1
-            });
-            console.log('fhjfdhhjdfhvdfjh');
-            
+            });            
             console.log("form submitted", response);
-            
-    
-            
+            Swal.fire({
+                    icon: "success",
+                    title: response.data.message,
+                    text: "Vous pouvez vous connecter maintenant",
+                    timer: 2000,
+                    showConfirmButton: false,
+                });
         } catch (error) {
             console.error("Erreur lors de l'envoi du formulaire :");
+            Swal.fire({
+                icon: "error",
+                title: "Erreur",
+                text: "Une erreur s'est produite lors de l'inscription.",
+                timer: 2000,
+                showConfirmButton: false,
+            });
         }
     };
 
@@ -37,7 +49,6 @@ const Login = () => {
         console.log(formData);
         try {
             const response = await axios.post("http://localhost:8000/api/login", formData);
-            console.log(response);
             const token = response.data.token;
         const user = response.data.user.id;
             sessionStorage.setItem('token',token);
@@ -50,6 +61,7 @@ const Login = () => {
                     timer: 2000,
                     showConfirmButton: false,
                 });
+                window.location.href = "/home";
                
           } catch (err) {
             console.error(err);

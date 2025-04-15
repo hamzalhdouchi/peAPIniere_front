@@ -6,7 +6,8 @@ const EmployeeDashboard = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [orders, setOrders] = useState([]);
-  const [readyOrders, setReadyOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [stats, setStats] = useState([
     { id: 1, name: 'En attente', value: 0, icon: 'clock', color: 'green' },
     { id: 2, name: 'En préparation', value: 0, icon: 'refresh', color: 'blue' },
@@ -15,8 +16,9 @@ const EmployeeDashboard = () => {
   ]);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchOrders = async () => {
       try {
+        setLoading(true);
         const token = sessionStorage.getItem('token');
         if (token) {
           axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -24,120 +26,83 @@ const EmployeeDashboard = () => {
 
         const response = await axios.get('http://127.0.0.1:8000/api/orders');
         const allOrders = response.data;
-        console.log(allOrders);
         
         
-        // Filter orders by status
-        const pendingOrders = allOrders.filter(order => order.status === 'pending');
-        const preparationOrders = allOrders.filter(order => order.status === 'preparation');
-        const readyOrders = allOrders.filter(order => order.status === 'ready');
+        const pendingOrders = allOrders.filter(order => order.statut === 'pending');
+        const preparationOrders = allOrders.filter(order => order.statut === 'preparation');
+        const readyOrders = allOrders.filter(order => order.statut === 'ready');
         
-        // Update stats
         setStats([
-          { ...stats[0], value: pendingOrders.length },
+          { ...stats[0], value: pendingOrders.length   },
           { ...stats[1], value: preparationOrders.length },
           { ...stats[2], value: readyOrders.length },
           { ...stats[3], value: allOrders.length }
         ]);
         
         setOrders(allOrders);
-        setReadyOrders(readyOrders);
-        
-      } catch (error) {
-        console.error('Erreur lors de la récupération des commandes:', error);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching orders:', err);
+        setError('Failed to load orders. Please try again later.');
+        setLoading(false);
       }
     };
 
-    fetchData();
+    fetchOrders();
   }, []);
 
-  const handlePrepareOrder = async (orderId) => {
+  const updateOrderstatut = async (orderId, newstatut) => {
     try {
-        const response = await axios.get(`http://127.0.0.1:8000/api/orders`);
-      
-      console.log(response);
-      
+      const response = await axios.put(`http://127.0.0.1:8000/api/orders/${orderId}/statut`, {
+        statut: newstatut
+      });
+        console.log(response);
+
       const updatedOrders = orders.map(order => 
-        order.id === orderId ? { ...order, status: 'preparation' } : order
+        order.id === orderId ? { ...order, statut: newstatut } : order
       );
       
       setOrders(updatedOrders);
       
-      // Update stats
-      const pendingOrders = updatedOrders.filter(order => order.status === 'pending');
-      const preparationOrders = updatedOrders.filter(order => order.status === 'preparation');
-      const readyOrders = updatedOrders.filter(order => order.status === 'ready');
+      const pendingOrders = updatedOrders.filter(order => order.statut === 'pending');
+      const preparationOrders = updatedOrders.filter(order => order.statut === 'preparation');
+      const readyOrders = updatedOrders.filter(order => order.statut === 'ready');
       
       setStats([
         { ...stats[0], value: pendingOrders.length },
         { ...stats[1], value: preparationOrders.length },
         { ...stats[2], value: readyOrders.length },
-        stats[3]
+        { ...stats[3], value: updatedOrders.length }
       ]);
       
-    } catch (error) {
-      console.error('Erreur lors de la mise à jour de la commande:', error);
+    } catch (err) {
+      console.error('Error updating order statut:', err);
+      setError('Failed to update order statut.');
     }
   };
 
-  const updateOrderStatus = async (orderId, newStatus) => {
-    try {
-      await axios.put(`/api/orders/${orderId}/status`, {
-        status: newStatus
-      });
-      setOrders(orders.map(order => 
-        order.id === orderId ? {...order, status: newStatus} : order
-      ));
-    } catch (error) {
-      console.error("Erreur lors de la mise à jour du statut:", error);
-    }
-  };
-  
   const updateOrderAcceptance = async (orderId, newAcceptance) => {
     try {
-      await axios.put(`/api/orders/${orderId}/acceptance`, {
-        acciptaion: newAcceptance
-      });
-      setOrders(orders.map(order => 
-        order.id === orderId ? {...order, accepted: newAcceptance} : order
-      ));
-    } catch (error) {
-      console.error("Erreur lors de la mise à jour de l'acceptation:", error);
-    }
-  };
+      if (newAcceptance === 'accepted') {
+        await axios.put(`http://127.0.0.1:8000/api/orders/${orderId}/accept`);
+      }else{
+        await axios.put(`http://127.0.0.1:8000/api/orders/${orderId}/reject`);
+      }
 
-  const handleMarkAsDelivered = async (orderId) => {
-    try {
-      await axios.put(`http://127.0.0.1:8000/api/orders/${orderId}`, {
-        status: 'delivered'
-      });
-      
-      // Update local state
-      const updatedReadyOrders = readyOrders.filter(order => order.id !== orderId);
       const updatedOrders = orders.map(order => 
-        order.id === orderId ? { ...order, status: 'delivered' } : order
+        order.id === orderId ? { ...order, acciptaion: newAcceptance } : order
       );
       
-      setReadyOrders(updatedReadyOrders);
       setOrders(updatedOrders);
       
-      // Update stats
-      const readyOrdersCount = updatedReadyOrders.length;
-      
-      setStats([
-        stats[0],
-        stats[1],
-        { ...stats[2], value: readyOrdersCount },
-        stats[3]
-      ]);
-      
-    } catch (error) {
-      console.error('Erreur lors de la mise à jour de la commande:', error);
+    } catch (err) {
+      console.error('Error updating order acceptance:', err);
+      setError('Failed to update order acceptance.');
     }
   };
 
-  const getStatusBadge = (status) => {
-    switch (status) {
+  const getstatutBadge = (statut) => {
+    switch (statut) {
       case 'pending':
         return 'bg-yellow-100 text-yellow-800';
       case 'preparation':
@@ -151,8 +116,8 @@ const EmployeeDashboard = () => {
     }
   };
 
-  const getStatusText = (status) => {
-    switch (status) {
+  const getstatutText = (statut) => {
+    switch (statut) {
       case 'pending':
         return 'En attente';
       case 'preparation':
@@ -162,12 +127,12 @@ const EmployeeDashboard = () => {
       case 'delivered':
         return 'Livrée';
       default:
-        return status;
+        return statut;
     }
   };
 
   const getAcceptanceText = (accepted) => {
-    return accepted ? (
+    return accepted === 'accepte' ? (
       <span className="text-green-500 font-medium">Acceptée</span>
     ) : (
       <span className="text-red-500 font-medium">Refusée</span>
@@ -177,13 +142,13 @@ const EmployeeDashboard = () => {
   const filteredOrders = () => {
     switch (activeTab) {
       case 'pending':
-        return orders.filter(order => order.status === 'pending');
+        return orders.filter(order => order.statut === 'pending');
       case 'preparation':
-        return orders.filter(order => order.status === 'preparation');
+        return orders.filter(order => order.statut === 'preparation');
       case 'ready':
-        return orders.filter(order => order.status === 'ready');
+        return orders.filter(order => order.statut === 'ready');
       case 'delivered':
-        return orders.filter(order => order.status === 'delivered');
+        return orders.filter(order => order.statut === 'delivered');
       default:
         return orders;
     }
@@ -198,12 +163,12 @@ const EmployeeDashboard = () => {
   ];
 
   const navItems = [
-    { name: 'Tableau de bord', icon: 'home', active: true },
-    { name: 'Commandes', icon: 'shopping-bag' },
-    { name: 'Statistiques', icon: 'chart-bar' },
-    { name: 'Produits', icon: 'plus' },
-    { name: 'Clients', icon: 'users' },
-    { name: 'Paramètres', icon: 'cog' }
+    { name: 'Tableau de bord', icon: 'home', active: true, path: '/dashboard' },
+    { name: 'Commandes', icon: 'shopping-bag', path: '/orders' },
+    { name: 'Statistiques', icon: 'chart-bar', path: '/stats' },
+    { name: 'Produits', icon: 'plus', path: '/products' },
+    { name: 'Clients', icon: 'users', path: '/customers' },
+    { name: 'Paramètres', icon: 'cog', path: '/settings' }
   ];
 
   const getIcon = (iconName) => {
@@ -256,6 +221,42 @@ const EmployeeDashboard = () => {
     }
   };
 
+  const handleLogout = () => {
+    sessionStorage.removeItem('token');
+    window.location.href = '/login';
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-green-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Chargement des commandes...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-green-50">
+        <div className="text-center p-6 bg-white rounded-lg shadow-md max-w-md mx-auto">
+          <svg className="h-12 w-12 text-red-500 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <h3 className="mt-2 text-lg font-medium text-gray-900">Erreur</h3>
+          <p className="mt-1 text-sm text-gray-500">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+          >
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-green-50">
       {/* Mobile sidebar */}
@@ -276,7 +277,7 @@ const EmployeeDashboard = () => {
                 {navItems.map((item) => (
                   <Link
                     key={item.name}
-                    to="#"
+                    to={item.path}
                     className={`flex items-center px-2 py-2 text-sm font-medium rounded-md ${
                       item.active ? 'bg-green-100 text-green-600' : 'text-gray-600 hover:bg-green-50 hover:text-green-600'
                     }`}
@@ -293,6 +294,17 @@ const EmployeeDashboard = () => {
                   </Link>
                 ))}
               </nav>
+            </div>
+            <div className="flex-shrink-0 p-4 border-t border-gray-200">
+              <button 
+                onClick={handleLogout}
+                className="flex items-center w-full px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md"
+              >
+                <svg className="mr-3 h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Déconnexion
+              </button>
             </div>
           </div>
         </div>
@@ -325,7 +337,7 @@ const EmployeeDashboard = () => {
               {navItems.map((item) => (
                 <Link
                   key={item.name}
-                  to="#"
+                  to={item.path}
                   className={`flex items-center px-4 py-2 text-sm font-medium rounded-md ${
                     item.active ? 'bg-green-600 text-white' : 'text-gray-600 hover:bg-green-50 hover:text-green-600'
                   }`}
@@ -344,7 +356,10 @@ const EmployeeDashboard = () => {
             </nav>
           </div>
           <div className="flex-shrink-0 p-4 border-t border-gray-200">
-            <button className="flex items-center w-full px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md">
+            <button 
+              onClick={handleLogout}
+              className="flex items-center w-full px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-md"
+            >
               <svg className="mr-3 h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
@@ -469,7 +484,7 @@ const EmployeeDashboard = () => {
               <div className="mt-8 bg-white shadow rounded-lg overflow-hidden">
                 <div className="px-4 py-5 sm:px-6">
                   <h3 className="text-lg leading-6 font-medium text-gray-900">
-                    Commandes récentes
+                    {activeTab === 'all' ? 'Toutes les commandes' : `Commandes ${tabs.find(t => t.id === activeTab)?.name.toLowerCase()}`}
                   </h3>
                 </div>
                 <div className="border-t border-gray-200">
@@ -504,97 +519,11 @@ const EmployeeDashboard = () => {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredOrders().map(order => (
-                        <tr key={order.id}>
-                        {/* ... autres colonnes ... */}
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex space-x-2">
-                            {/* Bouton pour changer le statut */}
-                            {order.status === 'pending' && (
-                              <button 
-                                className="px-3 py-1 bg-green-100 text-green-800 rounded-md hover:bg-green-200"
-                                onClick={() => updateOrderStatus(order.id, 'in_preparation')}
-                              >
-                                Préparer
-                              </button>
-                            )}
-                            {order.status === 'in_preparation' && (
-                              <button 
-                                className="px-3 py-1 bg-blue-100 text-blue-800 rounded-md hover:bg-blue-200"
-                                onClick={() => updateOrderStatus(order.id, 'delivered')}
-                              >
-                                Marquer comme livré
-                              </button>
-                            )}
-
-                            {/* Boutons pour l'acceptation */}
-                            {order.accepted === 'refsuer' && (
-                              <button 
-                                className="px-3 py-1 bg-green-100 text-green-800 rounded-md hover:bg-green-200"
-                                onClick={() => updateOrderAcceptance(order.id, 'accepte')}
-                              >
-                                Accepter
-                              </button>
-                            )}
-                            {order.accepted === 'accepte' && (
-                              <button 
-                                className="px-3 py-1 bg-red-100 text-red-800 rounded-md hover:bg-red-200"
-                                onClick={() => updateOrderAcceptance(order.id, 'refsuer')}
-                              >
-                                Refuser
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Ready to deliver section */}
-              {readyOrders.length > 0 && (
-                <div className="mt-8 bg-white shadow rounded-lg overflow-hidden">
-                  <div className="px-4 py-5 sm:px-6 flex justify-between items-center">
-                    <h3 className="text-lg leading-6 font-medium text-gray-900">
-                      Commandes prêtes à livrer
-                    </h3>
-                    <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-medium rounded-full">
-                      {readyOrders.length} commande{readyOrders.length !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                  <div className="border-t border-gray-200">
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              ID
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Client
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Plante
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Quantité
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Date de préparation
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Actions
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                          {readyOrders.map(order => (
+                        {filteredOrders().length > 0 ? (
+                          filteredOrders().map((order) => (
                             <tr key={order.id}>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {order.id}
+                                #{order.id}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center">
@@ -605,40 +534,90 @@ const EmployeeDashboard = () => {
                                   </div>
                                   <div className="ml-4">
                                     <div className="text-sm font-medium text-gray-900">
-                                      {order.customer?.name || 'N/A'}
+                                      {order.user?.name || 'N/A'}
                                     </div>
                                     <div className="text-sm text-gray-500">
-                                      {order.customer?.email || 'N/A'}
+                                      {order.user?.email || 'N/A'}
                                     </div>
                                   </div>
                                 </div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm text-gray-900">{order.plant?.name || 'N/A'}</div>
+                                <div className="text-sm text-gray-900">{order.plant?.nomPlante || 'N/A'}</div>
                                 <div className="text-sm text-gray-500">ID: {order.plant?.id || 'N/A'}</div>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {order.quantity}
                               </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getstatutBadge(order.statut)}`}>
+                                  {getstatutText(order.statut)}
+                                </span>
+                              </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {new Date(order.updated_at).toLocaleDateString()}
+                                {getAcceptanceText(order.acciptaion)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {new Date(order.created_at).toLocaleDateString()}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                <button 
-                                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
-                                  onClick={() => handleMarkAsDelivered(order.id)}
-                                >
-                                  Marquer comme livrée
-                                </button>
+                                <div className="flex space-x-2">
+                                  {order.statut === 'pending' && (
+                                    <button
+                                      onClick={() => updateOrderstatut(order.id, 'preparation')}
+                                      className="px-3 py-1 bg-blue-100 text-blue-800 rounded-md hover:bg-blue-200 text-sm"
+                                    >
+                                      Préparer
+                                    </button>
+                                  )}
+                                  {order.statut === 'in_preparation' && (
+                                    <button
+                                      onClick={() => updateOrderstatut(order.id, 'ready')}
+                                      className="px-3 py-1 bg-green-100 text-green-800 rounded-md hover:bg-green-200 text-sm"
+                                    >
+                                      Prête à livrer
+                                    </button>
+                                  )}
+                                  {order.statut === 'delivered' && (
+                                    <button
+                                      onClick={() => updateOrderstatut(order.id, 'delivered')}
+                                      className="px-3 py-1 bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200 text-sm"
+                                    >
+                                      Livrée
+                                    </button>
+                                  )}
+                                  {order.acciptaion === 'refsuer' && (
+                                    <button
+                                      onClick={() => updateOrderAcceptance(order.id, 'accepte')}
+                                      className="px-3 py-1 bg-green-100 text-green-800 rounded-md hover:bg-green-200 text-sm"
+                                    >
+                                      Accepter
+                                    </button>
+                                  )}
+                                  {order.acciptaion === 'accepte' && (
+                                    <button
+                                      onClick={() => updateOrderAcceptance(order.id, 'refuser')}
+                                      className="px-3 py-1 bg-red-100 text-red-800 rounded-md hover:bg-red-200 text-sm"
+                                    >
+                                      Refuser
+                                    </button>
+                                  )}
+                                </div>
                               </td>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="8" className="px-6 py-4 text-center text-sm text-gray-500">
+                              Aucune commande trouvée
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </main>
